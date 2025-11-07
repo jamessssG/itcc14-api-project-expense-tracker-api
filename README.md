@@ -10,6 +10,13 @@
 - Developed a route for time tracker route
 - yes
 ### Deliverables: 
-
+- Deliverables (Product / Evidence)
+- The README.md file will be updated with:
+- Project overview & purpose
+- Problem/Needs analysis
+- Proposed solution summary
+- A data model section describing the fields for the Quote entity.
+- An api.yaml (or similar API documentation file) listing planned endpoints and HTTP methods.
+- Initial project repository created and pushed to GitHub.
 
 ### Checklists:
