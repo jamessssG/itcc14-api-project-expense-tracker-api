@@ -9,7 +9,7 @@
 ### What we'll do: 
 - Developed a route for time tracker route
 - Confirmation it works on swagger editor.
-- Submmit yaml file.
+- Submit yaml file.
 
 ### Deliverables: 
 - An api.yaml (or similar API documentation file) listing planned endpoints and HTTP methods.
