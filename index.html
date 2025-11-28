@@ -2,10 +2,323 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <title>Expense Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      h1 {
+        text-align: center;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      form {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: end;
+      }
+      label {
+        font-size: 0.85rem;
+        color: #555;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.primary {
+        background: #2563eb;
+        color: white;
+      }
+      button.danger {
+        background: #dc2626;
+        color: white;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+        font-size: 0.9rem;
+      }
+      th {
+        background: #f3f4f6;
+      }
+      .summary {
+        margin-top: 20px;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .card {
+        flex: 1;
+        min-width: 180px;
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 12px 16px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      }
+      .card-title {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #6b7280;
+      }
+      .card-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+      .income {
+        color: #16a34a;
+      }
+      .expense {
+        color: #dc2626;
+      }
+      .balance {
+        color: #2563eb;
+      }
+      .error {
+        color: #dc2626;
+        margin-top: 8px;
+      }
+      .success {
+        color: #16a34a;
+        margin-top: 8px;
+      }
+      @media (max-width: 768px) {
+        form {
+          grid-template-columns: 1fr 1fr;
+        }
+        form button {
+          grid-column: span 2;
+        }
+      }
+    </style>
   </head>
   <body>
-    <h1>Hello World</h1>
+    <h1>Expense Tracker</h1>
+    <div class="container">
+      <form id="transaction-form">
+        <div>
+          <label>Description</label>
+          <input type="text" id="description" required />
+        </div>
+        <div>
+          <label>Amount</label>
+          <input type="number" step="0.01" id="amount" required />
+        </div>
+        <div>
+          <label>Category</label>
+          <input type="text" id="category" required />
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="type">
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+        </div>
+        <div>
+          <label>Date</label>
+          <input type="date" id="date" required />
+        </div>
+        <button type="submit" class="primary">Add Transaction</button>
+      </form>
+
+      <div id="message"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="transactions-body"></tbody>
+      </table>
+
+      <div class="summary">
+        <div class="card">
+          <div class="card-title">Total Income</div>
+          <div id="total-income" class="card-value income">₱0.00</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Total Expense</div>
+          <div id="total-expense" class="card-value expense">₱0.00</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Balance</div>
+          <div id="balance" class="card-value balance">₱0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = "http://localhost:5000";
+
+      const form = document.getElementById("transaction-form");
+      const tbody = document.getElementById("transactions-body");
+      const messageDiv = document.getElementById("message");
+      const totalIncomeDiv = document.getElementById("total-income");
+      const totalExpenseDiv = document.getElementById("total-expense");
+      const balanceDiv = document.getElementById("balance");
+
+      function formatCurrency(value) {
+        return "₱" + Number(value || 0).toFixed(2);
+      }
+
+      function showMessage(text, isError = false) {
+        messageDiv.textContent = text;
+        messageDiv.className = isError ? "error" : "success";
+        if (text) {
+          setTimeout(() => {
+            messageDiv.textContent = "";
+            messageDiv.className = "";
+          }, 3000);
+        }
+      }
+
+      async function loadTransactions() {
+        tbody.innerHTML = "";
+        try {
+          const res = await fetch(`${API_BASE}/transactions`);
+          const data = await res.json();
+          data.forEach((tx) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${tx.date}</td>
+              <td>${tx.description}</td>
+              <td>${tx.category}</td>
+              <td>${tx.type}</td>
+              <td>${formatCurrency(tx.amount)}</td>
+              <td><button class="danger" data-id="${tx.id}">Delete</button></td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } catch (err) {
+          console.error(err);
+          showMessage("Failed to load transactions", true);
+        }
+      }
+
+      async function loadSummary() {
+        try {
+          const res = await fetch(`${API_BASE}/summary`);
+          const data = await res.json();
+          totalIncomeDiv.textContent = formatCurrency(data.total_income);
+          totalExpenseDiv.textContent = formatCurrency(data.total_expense);
+          balanceDiv.textContent = formatCurrency(data.balance);
+        } catch (err) {
+          console.error(err);
+          showMessage("Failed to load summary", true);
+        }
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const description = document.getElementById("description").value;
+        const amount = document.getElementById("amount").value;
+        const category = document.getElementById("category").value;
+        const type = document.getElementById("type").value;
+        const date = document.getElementById("date").value;
+
+        if (!description || !amount || !category || !date) {
+          showMessage("Please fill in all fields", true);
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE}/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              description,
+              amount,
+              category,
+              type,
+              date,
+            }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            showMessage(data.error || "Failed to add transaction", true);
+            return;
+          }
+
+          form.reset();
+          showMessage("Transaction added successfully");
+          await loadTransactions();
+          await loadSummary();
+        } catch (err) {
+          console.error(err);
+          showMessage("Failed to add transaction", true);
+        }
+      });
+
+      tbody.addEventListener("click", async (e) => {
+        if (e.target.tagName === "BUTTON") {
+          const id = e.target.getAttribute("data-id");
+          if (!id) return;
+
+          if (!confirm("Are you sure you want to delete this transaction?")) {
+            return;
+          }
+
+          try {
+            const res = await fetch(`${API_BASE}/transactions/${id}`, {
+              method: "DELETE",
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              showMessage(data.error || "Failed to delete", true);
+              return;
+            }
+            showMessage("Transaction deleted");
+            await loadTransactions();
+            await loadSummary();
+          } catch (err) {
+            console.error(err);
+            showMessage("Failed to delete transaction", true);
+          }
+        }
+      });
+
+      // Initial load
+      loadTransactions();
+      loadSummary();
+    </script>
   </body>
 </html>
