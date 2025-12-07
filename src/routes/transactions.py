@@ -1,11 +1,13 @@
-from typing import Optional, List, Dict
+from typing import List, Dict
 from flask import Blueprint, request, jsonify
 from bson import ObjectId
 
 from db import transactions_collection
-from schemas.transaction_schema import parse_transaction_input
+from transaction_schema import parse_transaction_input
 
-transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions")
+transactions_bp = Blueprint(
+    "transactions", __name__, url_prefix="/transactions"
+)
 
 
 def _serialize_transaction(doc: dict) -> dict:
@@ -19,36 +21,47 @@ def _serialize_transaction(doc: dict) -> dict:
     }
 
 
-@transactions_bp.get("")
+@transactions_bp.get("/")
 def list_transactions():
-    """GET /transactions?category=...&type=..."""
-    category: Optional[str] = request.args.get("category")
-    type_: Optional[str] = request.args.get("type")
+    """
+    GET /transactions
+    Optional query params:
+      - type=income|expense
+      - category=someCategory
+    """
+    tx_type = request.args.get("type")
+    category = request.args.get("category")
 
-    query: dict = {}
+    query: Dict = {}
+    if tx_type in ("income", "expense"):
+        query["type"] = tx_type
     if category:
         query["category"] = category
-    if type_:
-        query["type"] = type_
 
-    results: List[Dict] = []
-    for doc in transactions_collection.find(query).sort("date", -1):
-        results.append(_serialize_transaction(doc))
+    docs: List[dict] = list(
+        transactions_collection.find(query).sort("date", -1)
+    )
 
-    return jsonify(results)
+    return jsonify([_serialize_transaction(doc) for doc in docs])
 
 
-@transactions_bp.post("")
+@transactions_bp.post("/")
 def create_transaction():
-    """POST /transactions  with JSON body."""
-    try:
-        data = request.get_json(force=True)
-    except Exception:
-        return jsonify({"error": "Invalid JSON body"}), 400
-
-    if data is None:
+    """
+    POST /transactions
+    JSON body:
+      {
+        "description": "...",
+        "amount": 123.45,
+        "category": "...",
+        "type": "income" | "expense",
+        "date": "YYYY-MM-DD"
+      }
+    """
+    if not request.is_json:
         return jsonify({"error": "Request body must be JSON"}), 400
 
+    data = request.get_json()
     try:
         tx = parse_transaction_input(data)
     except ValueError as e:

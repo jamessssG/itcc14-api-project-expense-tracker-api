@@ -18,14 +18,20 @@ def parse_transaction_input(data: dict) -> Transaction:
     type_str = str(data["type"]).lower()
     date_str = str(data["date"])
 
-    if type_str not in ("income", "expense"):
-        raise ValueError("type must be 'income' or 'expense'")
-
+    # amount as float
     try:
         amount = float(amount_raw)
-    except ValueError:
+    except (TypeError, ValueError):
         raise ValueError("amount must be a number")
 
+    if amount < 0:
+        raise ValueError("amount cannot be negative")
+
+    # type: income or expense
+    if type_str not in ("income", "expense"):
+        raise ValueError("type must be either 'income' or 'expense'")
+
+    # date as YYYY-MM-DD
     try:
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:

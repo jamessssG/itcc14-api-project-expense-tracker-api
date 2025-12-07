@@ -4,7 +4,7 @@ from db import transactions_collection
 summary_bp = Blueprint("summary", __name__, url_prefix="/summary")
 
 
-@summary_bp.get("")
+@summary_bp.get("/")
 def get_summary():
     """GET /summary -> total_income, total_expense, balance."""
     total_income = 0.0
